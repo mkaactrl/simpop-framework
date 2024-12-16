@@ -1,72 +1,91 @@
-# Define the function to simulate 'print' in Simpop Kode
-def prn(message):
-    print(message)
+import os
+import shutil
+import zipfile  # For cracking ZIP files
 
-# Define the system behavior (boot and flash)
-class Sys:
-    def __init__(self):
-        self.sys_op_boot = 0  # Boot state (0 = not booted, 1 = booted)
+def crack_zip(filename, dictionary):
+    if not zipfile.is_zipfile(filename):
+        print("Not a valid ZIP file.")
+        return
     
-    def boot_flash(self):
-        # Simulate flashing the system
-        prn("Flashing system boot... GUI initialized.")
-    
-    def config_flshbt(self):
-        # Simulate configuring the system
-        prn("System configuration updated.")
-    
-    def set_boot_state(self, state):
-        self.sys_op_boot = state
+    print(f"Attempting to crack '{filename}' with passwords from '{dictionary}'...")
+    with zipfile.ZipFile(filename) as zf:
+        with open(dictionary, 'r') as pwd_file:
+            for password in pwd_file:
+                password = password.strip()
+                try:
+                    zf.extractall(pwd=password.encode('utf-8'))
+                    print(f"Success! Password: '{password}'")
+                    return
+                except Exception:
+                    continue  # Wrong password, continue
+    print("Failed to crack the file. Password not found.")
 
-# Initialize the Sys class to handle boot and configuration
-sys = Sys()
+def simpop_kode_interpreter():
+    print("Welcome to Simpop Kode!")
+    multiline_buffer = []
+    in_multiline_mode = False
 
-# This function simulates the behavior of interpreting Simpop Kode
-def interpret_simpop_code(code):
-    lines = code.splitlines()
-    
-    for line in lines:
-        line = line.strip()
-        
-        if line.startswith("prn"):
-            # Print command
-            message = line[5:-1]  # Extract message from prn("message")
-            prn(message)
-        
-        elif line.startswith("$sys.boot.flash"):
-            # Flash boot
-            sys.boot_flash()
-        
-        elif line.startswith("$sys.config.Flshbt"):
-            # Configure system
-            sys.config_flshbt()
-        
-        elif line.startswith("var sys_op_boot"):
-            # Set system boot state
-            state = int(line.split("=")[1].strip())
-            sys.set_boot_state(state)
-        
-        elif line.startswith("if sys_op_boot == 1"):
-            # Boot condition check
-            if sys.sys_op_boot == 1:
-                prn("Successful Boot")
-                sys.boot_flash()  # Flash boot for GUI
+    while True:
+        prompt = "> " if in_multiline_mode else "$ "
+        command = input(prompt)
+
+        # Multiline mode
+        if command.startswith("$op.sys()"):
+            print("Entering multiline mode... Type $opend.fin() to finish.")
+            in_multiline_mode = True
+            multiline_buffer = []
+        elif command.startswith("$opend.fin()") and in_multiline_mode:
+            print("Executing block...")
+            block_code = "\n".join(multiline_buffer)
+            try:
+                exec(block_code)
+            except Exception as e:
+                print(f"Error in code block: {e}")
+            in_multiline_mode = False
+        elif in_multiline_mode:
+            multiline_buffer.append(command)
+
+        # Crack ZIP File
+        elif command.startswith("$crack.zip"):
+            print("Crack mode activated for ZIP files.")
+
+        elif command.startswith("func crack"):
+            parts = command.split()
+            if len(parts) >= 3:
+                filename = parts[2]
+                dictionary = "passwords.txt"  # Default password dictionary file
+                if os.path.exists(dictionary):
+                    crack_zip(filename, dictionary)
+                else:
+                    print(f"Dictionary file '{dictionary}' not found.")
             else:
-                prn("Boot failed")
-                sys.set_boot_state(0)  # Set boot state to 0 if it fails
+                print("Usage: func crack <filename>")
 
-# Example of Simpop Kode input
-simpop_code = """
-prn("Starting system operations...")
-var sys_op_boot = 1
-if sys_op_boot == 1
-    prn("Successful Boot")
-    $sys.boot.flash
-else
-    prn("Boot failed")
-    var sys_op_boot = 0
-$sys.config.Flshbt
-"""
+        # Create File
+        elif command.startswith("func createfile"):
+            parts = command.split()
+            if len(parts) >= 3:
+                filename = parts[2]
+                try:
+                    with open(filename, "w") as f:
+                        print(f"File '{filename}' created successfully!")
+                except Exception as e:
+                    print(f"Error creating file: {e}")
+            else:
+                print("Usage: func createfile <filename>")
 
-# Interpret and execute the Simpop Kode
-interpret_simpop_code(simpop_code)
+        # Print Command
+        elif command.startswith("prn"):
+            text = command.split("prn")[1].strip('()" ')
+            print(text)
+
+        # Exit
+        elif command == "exit":
+            print("Exiting Simpop Kode. Goodbye!")
+            break
+        else:
+            print("Unknown command:", command)
+
+
+# Run the interpreter
+simpop_kode_interpreter()
